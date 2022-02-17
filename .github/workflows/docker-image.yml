@@ -15,4 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag yarcheplus_parser:$(date +%s)
+      run: docker stop $(docker ps -q)
+           docker build . --file Dockerfile --tag yarcheplus_parser:$(date +%s)
+           docker run yarcheplus_parser:latest
