@@ -2,4 +2,8 @@ from python:3.10-buster
 
 copy ./ ./
 
-run python main.py
+user root
+
+run pip3 install -r requirements.txt
+run sh get_components.sh
+run python3 main.py
