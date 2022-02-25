@@ -9,15 +9,23 @@ from transliterate import translit
 import zipfile
 
 config = json.loads(open('config.json', 'r').read())
+
+directory = config['output_directory']
+if directory == 'out':
+    directory = ''
+if len(directory) > 0:
+    if directory[-1] != '/':
+        directory += '/'
+
 def header_categories(category):
-    with open('categories' + '.csv', 'a', newline='') as csvfile:
+    with open(directory + 'categories' + '.csv', 'a', newline='') as csvfile:
         fieldnames = list(category.keys())
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                 quoting=csv.QUOTE_ALL)
         writer.writeheader()
 
 def categories(category):
-    with open('categories' + '.csv', 'a', newline='') as csvfile:
+    with open(directory + 'categories' + '.csv', 'a', newline='') as csvfile:
         fieldnames = list(category.keys())
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                 quoting=csv.QUOTE_ALL)
@@ -25,13 +33,7 @@ def categories(category):
 
 def header_products(product, tt_id, time):
     file_name = '_'.join([translite(config['chain_name']), 'app', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
-    
-    if config['output_directory'] != "out":
-        symbol = ''
-        if config['output_directory'][-1] != '/':
-            symbol = '/'
-
-        file_name = config['output_directory'] + symbol + file_name
+    file_name = directory + file_name
 
     with open(file_name + '.csv', 'a', newline='') as csvfile:
         fieldnames = list(product.keys())
@@ -42,13 +44,7 @@ def header_products(product, tt_id, time):
 
 def product(product, tt_id, time):
     file_name = '_'.join([translite(config['chain_name']), 'app', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
-    
-    if config['output_directory'] != "out":
-        symbol = ''
-        if config['output_directory'][-1] != '/':
-            symbol = '/'
-
-        file_name = config['output_directory'] + symbol + file_name
+    file_name = directory + file_name
 
     with open(file_name + '.csv', 'a', newline='') as csvfile:
         fieldnames = list(product.keys())
