@@ -191,7 +191,7 @@ def get_city(abbr):
 
 
 def del_bad_symbols(products):
-    bad_symbols = [';', '«', '»', '”', '“', '\\', '"', '(', ')', '\n', '\t', '\r', '\xc2', '\xa0', '«']
+    bad_symbols = [';', '«', '»', '”', '“', '\\', '"', '(', ')', '\n', '\t', '\r', '\xc2', '\xa0']
     if len(products) > 0:
         for product in products:
             for key in list(product.keys()):

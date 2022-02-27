@@ -18,11 +18,11 @@
     "headers": "{'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36 OPR/83.0.4254.27'}",
     "logs_dir": "out",
     "email_sender": {
-        "login": "login@gmail.com",
-        "password": "password",
+        "login": "kgunovosti@gmail.com",
+        "password": "ss145632",
         "smtp": "smtp.gmail.com",
         "smtp_port": "465"
     },
-    "email_recipient": ["recipient@gmail.com"],
-    "work_email_recipient": ["work_recipient@gmail.com"]
+    "email_recipient": ["netever44@gmail.com"],
+    "work_email_recipient": ["geoiyami@gmail.com"]
 }
