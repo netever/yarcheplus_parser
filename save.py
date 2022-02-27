@@ -31,8 +31,10 @@ def categories(category):
                                 quoting=csv.QUOTE_ALL)
         writer.writerow(category)
 
-def header_products(product, tt_id, time):
+def header_products(product, tt_id, time, suspect=False):
     file_name = '_'.join([translite(config['chain_name']), 'app', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
+    if suspect:
+        file_name = '_'.join([translite(config['chain_name']), 'app', 'suspect', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
     file_name = directory + file_name
 
     with open(file_name + '.csv', 'a', newline='') as csvfile:
@@ -42,9 +44,11 @@ def header_products(product, tt_id, time):
         writer.writeheader()
     return file_name
 
-def product(product, tt_id, time):
+def product(product, tt_id, time, file=''):
     file_name = '_'.join([translite(config['chain_name']), 'app', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
     file_name = directory + file_name
+    if file != '':
+        file_name = file
 
     with open(file_name + '.csv', 'a', newline='') as csvfile:
         fieldnames = list(product.keys())
@@ -54,37 +58,39 @@ def product(product, tt_id, time):
     return file_name
 
 def archive(file):
-    jungle_zip = zipfile.ZipFile(file + '.zip', 'w')
-    jungle_zip.write(file + '.csv', compress_type=zipfile.ZIP_DEFLATED)
-    jungle_zip.close()
+    if file != '':
+        jungle_zip = zipfile.ZipFile(file + '.zip', 'w')
+        jungle_zip.write(file + '.csv', compress_type=zipfile.ZIP_DEFLATED)
+        jungle_zip.close()
 
-def send_mail(file, tt_name, time, body = 'Выгрузка успешно завершена'):
-    address = tt_name
-    if get_city(config['tt_region']) in address:
-        address = address.replace(get_city(config['tt_region']) + ',', '')
-    head = config['chain_name'] + ' | app | ' + get_city(config['tt_region']) + ' | ' + address + ' | ' + 'pd_all' + ' | ' + time
-    from_addr = config['email_sender']['login']
-    password = config['email_sender']['password']
-    smtp = config['email_sender']['smtp']
-    port = config['email_sender']['smtp_port']
-    to_addr = config['email_recipient']
-    subject = head
-    body_text = body
+def send_mail(file, tt_name, time, body = 'Выгрузка успешно завершена', recipient='email_recipient'):
+    if file != '.zip':
+        address = tt_name
+        if get_city(config['tt_region']) in address:
+            address = address.replace(get_city(config['tt_region']) + ',', '')
+        head = config['chain_name'] + ' | app | ' + get_city(config['tt_region']) + ' | ' + address + ' | ' + 'pd_all' + ' | ' + time
+        from_addr = config['email_sender']['login']
+        password = config['email_sender']['password']
+        smtp = config['email_sender']['smtp']
+        port = config['email_sender']['smtp_port']
+        to_addr = config[recipient]
+        subject = head
+        body_text = body
 
-    msg = MIMEText('' + body_text, 'plain', 'utf-8')
-    msg = MIMEMultipart()
-    msg['Subject'] = Header('' + subject, 'utf-8')
-    msg['From'] = from_addr
-    msg['To'] = ", ".join(to_addr)
+        msg = MIMEText('' + body_text, 'plain', 'utf-8')
+        msg = MIMEMultipart()
+        msg['Subject'] = Header('' + subject, 'utf-8')
+        msg['From'] = from_addr
+        msg['To'] = ", ".join(to_addr)
 
-    attach = MIMEApplication(open(file, 'rb').read())
-    attach.add_header('Content-Disposition', 'attachment', filename=file)
-    msg.attach(attach)
+        attach = MIMEApplication(open(file, 'rb').read())
+        attach.add_header('Content-Disposition', 'attachment', filename=file)
+        msg.attach(attach)
 
-    server = smtplib.SMTP_SSL(smtp, port)
-    server.login(from_addr, password)
-    server.sendmail(from_addr, to_addr, msg.as_string())
-    server.quit()
+        server = smtplib.SMTP_SSL(smtp, port)
+        server.login(from_addr, password)
+        server.sendmail(from_addr, to_addr, msg.as_string())
+        server.quit()
 
 
 def translite(text):
