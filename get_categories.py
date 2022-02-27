@@ -18,7 +18,7 @@ def get(url):
     req.mount('https://', HTTPAdapter(max_retries=retries))
     site = req.get(url, headers=json.loads(config['headers'].replace("'",'"')))
     if site.status_code == 200:
-        return del_bad_symbols(__get_Categories(__get_json(site.text)))
+        return __get_Categories(__get_json(site.text))
     return site.status_code
 
 def __get_Categories(site, parent_url = None, parent_name = ''):
@@ -41,6 +41,7 @@ def __get_Categories(site, parent_url = None, parent_name = ''):
         else:
             result['url'] = config['base_url'] + '/catalog' + result['url']
         CatName.append(result)
+    del_bad_symbols(CatName)
     return CatName
 
 def __get_json(site):

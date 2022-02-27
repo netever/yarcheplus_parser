@@ -7,6 +7,7 @@ import smtplib
 import json
 from transliterate import translit
 import zipfile
+import os
 
 config = json.loads(open('config.json', 'r').read())
 
@@ -38,10 +39,11 @@ def header_products(product, tt_id, time, suspect=False):
     file_name = directory + file_name
 
     with open(file_name + '.csv', 'a', newline='') as csvfile:
-        fieldnames = list(product.keys())
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
-                                quoting=csv.QUOTE_ALL)
-        writer.writeheader()
+        if os.stat(file_name + '.csv').st_size == 0:
+            fieldnames = list(product.keys())
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
+                                    quoting=csv.QUOTE_ALL)
+            writer.writeheader()
     return file_name
 
 def product(product, tt_id, time, file=''):

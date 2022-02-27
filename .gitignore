@@ -1,5 +1,7 @@
 config.json
 category.json
+Dockerfile
+*.sh
 text.txt
 */
 *.csv
