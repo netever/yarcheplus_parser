@@ -41,6 +41,7 @@ def __get_Categories(site, parent_url = None, parent_name = ''):
         else:
             result['url'] = config['base_url'] + '/catalog' + result['url']
         CatName.append(result)
+    del_bad_symbols(CatName)
     return CatName
 
 def __get_json(site):
@@ -48,3 +49,13 @@ def __get_json(site):
     pagejson = str(soup.find('script', charset="UTF-8"))
     pagejson = pagejson[pagejson.find('{'):pagejson.rfind('}')+1]
     return pagejson
+
+
+def del_bad_symbols(categories):
+    bad_symbols = [';', '«', '»', '”', '“', '\\', '"', '(', ')', '\n', '\t', '\r', '\xc2', '\xa0']
+    if len(categories) > 0:
+        for category in categories:
+            for key in list(category.keys()):
+                if type(category[key]) == type(''):
+                    for bad_symbol in bad_symbols:
+                        category[key] = category[key].replace(bad_symbol, '')
