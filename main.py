@@ -38,9 +38,9 @@ def main():
                 
                 if category in get_keys(categories, 'url'):
                     products = run.get(category, tt_id)
-                    if (len(products[0]) > 0): #https://yarcheplus.ru/catalog/tsvety-455 тут нет товаров
+                    if (len(products[0]) > 0):
                         file = save_products(products[0], tt_id, time)
-                    if (len(products[1]) > 0): #https://yarcheplus.ru/catalog/tsvety-455 тут нет товаров
+                    if (len(products[1]) > 0):
                         file2 = save_products(products[1], tt_id, time)
 
                     if len(check_subcategory(category, categories)) > 0:
