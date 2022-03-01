@@ -1,3 +1,8 @@
+from selenium import webdriver
+from selenium.webdriver import FirefoxOptions
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.common.keys import Keys
+from webdriver_manager.firefox import GeckoDriverManager
 import requests
 from requests.adapters import HTTPAdapter, Retry
 from bs4 import BeautifulSoup
@@ -6,6 +11,7 @@ import re
 from datetime import datetime
 import time
 import random
+import traceback
 
 
 
@@ -23,21 +29,35 @@ def pers(url):
     return site.status_code
 
 
-def get(url, tt_id):
-    rand = 0
-    if config['delay_range_s'] > 0:
-        rand = random.randrange(1, config['delay_range_s'], 1)
+def get(site, tt_id):
+    rand = random.randrange(1, config['delay_range_s'], 1) if config['delay_range_s'] > 0 else 0
     time.sleep(rand)
 
-    retries = Retry(total=config['max_retries'], backoff_factor=config['backoff_factor'], status_forcelist=[ 500, 502, 503, 504 ])
-    req = requests.Session()
-    req.mount('https://', HTTPAdapter(max_retries=retries))
-    site = req.get(url, headers=json.loads(config['headers'].replace("'",'"')))
-    if site.status_code == 200:
+    opts = FirefoxOptions()
+    opts.add_argument("--headless")
+    driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=opts)
+    driver.set_window_size(1440, 900)
+    try:
+        driver.get(site)
+        time.sleep(3)
+        butt = driver.find_element_by_xpath('//*[@id="app"]/div/div/div[1]/div/button')
+        butt.click()
+        time.sleep(1)
+        form = driver.find_element_by_xpath('//*[@id="receivedAddress"]')
+        form.send_keys(config['tt_id'][tt_id] + Keys.ENTER)
+        time.sleep(8)
+        form = driver.find_element_by_name('addressConfirmationForm')
+        form.submit()
+        time.sleep(8)
+        page = driver.page_source
+        driver.quit()
+        return __get_json_info(page, tt_id)
 
-        return __get_json_info(site.text, tt_id)
+    except:
+        driver.quit()
+        return None
 
-    return site.status_code
+
 
 
 def __get_json_info(site, tt_id):
@@ -79,10 +99,6 @@ def __get_json_info(site, tt_id):
         result['sku_country'] = ""
         result['sku_manufacturer'] = ""
         result['sku_package'] = ""
-        if product['quant']['type'] == 'piece':
-            result['sku_package'] = 2
-        if product['quant']['type'] == 'weight':
-            result['sku_package'] = 0
         result['sku_packed'] = ""
         result['sku_weight_min'] = ""
         result['sku_volume_min'] = ""
@@ -91,7 +107,8 @@ def __get_json_info(site, tt_id):
         result['sku_alcohol_min'] = ""
         result['sku_link'] = config['base_url'] + "/product/" + product['code'] + '-' + str(product['id'])
         result['api_link'] = "" + get_api_url(site)
-        result['sku_parameters_json'] = ""
+        sku_parameters = __get_product_description(result['sku_link'], config['tt_id'][tt_id])
+        result['sku_parameters_json'] = json.dumps(sku_parameters)
         result['sku_images'] = ""
         result['server_ip'] = '127.0.0.1'
         result['dev_info'] = ''
@@ -100,16 +117,21 @@ def __get_json_info(site, tt_id):
         if config['sku_images_enable'] == True:
             result['sku_images'] = result['api_link'] + '/thumbnail/740x740/{}/{}/{}.webp'.format(str(product['image']['id'])[0:2], str(product['image']['id'])[2:], product['image']['id'])
         if config['sku_parameters_enable'] == True:
-            result['sku_brand'] = ""
-            result['sku_country'] = ""
-            result['sku_manufacturer'] = ""
+            if 'Торговая марка' in list(sku_parameters.keys()):
+                result['sku_brand'] = sku_parameters['Торговая марка']
+            if 'Страна производства' in list(sku_parameters.keys()):
+                result['sku_country'] = sku_parameters['Страна производства']
+            if 'Производитель' in list(sku_parameters.keys()):
+                result['sku_manufacturer'] = sku_parameters['Производитель']
             if product['quant']['type'] == 'piece':
-                result['sku_package'] = 2
+                result['sku_packed'] = 2
             if product['quant']['type'] == 'weight':
-                result['sku_package'] = 0
-            result['sku_packed'] = ""
-            result['sku_weight_min'] = ""
-            result['sku_volume_min'] = ""
+                result['sku_packed'] = 0
+            result['sku_package'] = ""
+            if 'Вес' in list(sku_parameters.keys()):
+                result['sku_weight_min'] = sku_parameters['Вес']
+            if 'Объем' in list(sku_parameters.keys()):
+                result['sku_volume_min'] = sku_parameters['Объем']
             result['sku_quantity_min'] = ""
             result['sku_fat_min'] = ""
             result['sku_alcohol_min'] = ""
@@ -139,23 +161,59 @@ def __get_json(site):
     pagejson = pagejson[pagejson.find('{'):pagejson.rfind('}')+1]
     return pagejson
 
-def __get_product_description(site):
-    rand = 0
-    if config['delay_range_s'] > 0:
-        rand = random.randrange(1, config['delay_range_s'], 1)
+def __get_product_description(site, tt_name):
+    rand = random.randrange(1, config['delay_range_s'], 1) if config['delay_range_s'] > 0 else 0
     time.sleep(rand)
     
-    retries = Retry(total=config['max_retries'], backoff_factor=config['backoff_factor'], status_forcelist=[ 500, 502, 503, 504 ])
-    req = requests.Session()
-    req.mount('https://', HTTPAdapter(max_retries=retries))
-    site = req.get(site, headers=json.loads(config['headers'].replace("'",'"')))
-    if site.status_code == 200:
-        site = site.text
-    
+    opts = FirefoxOptions()
+    opts.add_argument("--headless")
+    driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=opts)
+    driver.set_window_size(1440, 900)
+    try:
+        driver.get(site)
+        time.sleep(3)
+        butt = driver.find_element_by_xpath('//*[@id="app"]/div/div/div[1]/div/button')
+        butt.click()
+        time.sleep(0)
+        form = driver.find_element_by_xpath('//*[@id="receivedAddress"]')
+        form.send_keys(tt_name)
+        time.sleep(1)
+        form.send_keys(Keys.ENTER)
+        time.sleep(8)
+        form = driver.find_element_by_name('addressConfirmationForm')
+        form.submit()
+        time.sleep(8)
+        try:
+            form = driver.find_element_by_xpath('/html/body/main/div/div/div[5]/div/div/div[3]/div/div[1]/button[2]')
+            driver.execute_script("window.scrollTo(0, {})".format(form.location['y']-90))
+            time.sleep(1)
+            form.click()
+        except Exception as e:
+            print()
+            print('Ошибка:\n', traceback.format_exc())
+            print()
+        site = driver.page_source
+        driver.quit()
+
+    except:
+        driver.quit()
     soup = BeautifulSoup(site, "html.parser")
-    pagejson = soup.find('div', attrs={ "class" : "product-props__sub-section"})
-    #print(pagejson)
-    return ""
+    page = soup.find('div', class_='product-props__sub-section')
+    products = []
+    result = {}
+    for element in page.find_all('div'):
+        products.append(element.text)
+
+    for element in enumerate(products):
+        if len(products) - element[0] > 2:
+            if element[1] == products[element[0]+1] + products[element[0]+2]:
+                del products[element[0]]
+    
+    for element in enumerate(products):
+        if element[0] % 2 == 0:
+            result[element[1]] = ''
+        else: result[products[element[0]-1]] = element[1]
+    return result
 
 def get_api_url(site):
     soup = BeautifulSoup(site, "html.parser")

@@ -1,3 +1,4 @@
+import time
 import json
 from datetime import datetime
 import get_categories
@@ -15,13 +16,13 @@ def main():
         file = ''
         file2 = ''
 
-        categories = (get_categories.get(config['base_url'] + '/category/'))
+        categories = (get_categories.GetSiteWith_tt(config['base_url'] + '/category/', config['tt_id'][tt_id]))
         if len(categories) > 0:
             save.header_categories(categories[0])
             for category in categories:
                 save.categories(category)
         
-        if len(config['categories'][tt_id]) == 0 and len(categories) > 0:
+        if len(config['categories']) == 0 and len(categories) > 0:
             for category in categories:
                 products = run.get(category['url'], tt_id)
                 if (len(products[0]) > 0): #https://yarcheplus.ru/catalog/tsvety-455 тут нет товаров
@@ -33,8 +34,8 @@ def main():
         file = ''
         file2 = ''
 
-        if len(config['categories'][tt_id]) > 0:
-            for category in config['categories'][tt_id]:
+        if len(config['categories']) > 0:
+            for category in config['categories']:
                 
                 if category in get_keys(categories, 'url'):
                     products = run.get(category, tt_id)

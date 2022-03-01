@@ -4,13 +4,16 @@ from bs4 import BeautifulSoup
 import json
 import time
 import random
+from selenium import webdriver
+from selenium.webdriver import FirefoxOptions
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.common.keys import Keys
+from webdriver_manager.firefox import GeckoDriverManager
 
 config = json.loads(open('config.json', 'r').read())
 
 def get(url):
-    rand = 0
-    if config['delay_range_s'] > 0:
-        rand = random.randrange(1, config['delay_range_s'], 1)
+    rand = random.randrange(1, config['delay_range_s'], 1) if config['delay_range_s'] > 0 else 0
     time.sleep(rand)
     
     retries = Retry(total=config['max_retries'], backoff_factor=config['backoff_factor'], status_forcelist=[ 500, 502, 503, 504 ])
@@ -20,6 +23,29 @@ def get(url):
     if site.status_code == 200:
         return __get_Categories(__get_json(site.text))
     return site.status_code
+
+def GetSiteWith_tt(site, tt_name):
+    opts = FirefoxOptions()
+    opts.add_argument("--headless")
+    driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=opts)
+    driver.set_window_size(1440, 900)
+    try:
+        driver.get(site)
+        time.sleep(3)
+        butt = driver.find_element_by_xpath('//*[@id="app"]/div/div/div[1]/div/button')
+        butt.click()
+        time.sleep(0)
+        form = driver.find_element_by_xpath('//*[@id="receivedAddress"]')
+        form.send_keys(tt_name + Keys.ENTER)
+        time.sleep(0)
+        form = driver.find_element_by_name('addressConfirmationForm')
+        form.submit()
+        page = driver.page_source
+        driver.quit()
+        return __get_Categories(__get_json(page))
+
+    except:
+        driver.quit()
 
 def __get_Categories(site, parent_url = None, parent_name = ''):
     dictData = json.loads(site)
