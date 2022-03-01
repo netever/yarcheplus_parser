@@ -3,11 +3,9 @@ from selenium.webdriver import FirefoxOptions
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.common.keys import Keys
 from webdriver_manager.firefox import GeckoDriverManager
-import requests
-from requests.adapters import HTTPAdapter, Retry
+import logging
 from bs4 import BeautifulSoup
 import json
-import re
 from datetime import datetime
 import time
 import random
@@ -16,23 +14,15 @@ import traceback
 
 
 config = json.loads(open('config.json', 'r').read())
-
-def pers(url):
-    retries = Retry(total=config['max_retries'], backoff_factor=config['backoff_factor'], status_forcelist=[ 500, 502, 503, 504 ])
-    req = requests.Session()
-    req.mount('https://', HTTPAdapter(max_retries=retries))
-    site = req.get(url, headers=json.loads(config['headers'].replace("'",'"')))
-    if site.status_code == 200:
-
-        return site.text
-
-    return site.status_code
+logging.basicConfig(filename=config['logs_dir']+"yarche_parser.log", level=logging.INFO)
+log = logging.getLogger("parser")
 
 
 def get(site, tt_id):
     rand = random.randrange(1, config['delay_range_s'], 1) if config['delay_range_s'] > 0 else 0
     time.sleep(rand)
 
+    log.info('Start and configure browser')
     opts = FirefoxOptions()
     opts.add_argument("--headless")
     driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=opts)
@@ -51,9 +41,11 @@ def get(site, tt_id):
         time.sleep(8)
         page = driver.page_source
         driver.quit()
+        log.info('Successfully specified delivery address and starting to get products')
         return __get_json_info(page, tt_id)
 
-    except:
+    except Exception as e:
+        log.error('Something didnt work, attach error\n'+traceback.format_exc()+'\n\n')
         driver.quit()
         return None
 
@@ -62,7 +54,7 @@ def get(site, tt_id):
 
 def __get_json_info(site, tt_id):
     dictData = json.loads(__get_json(site))
-    try:
+    try: #чтобы кучу if'ок не делать решил обернуть в try-except
         dictData = dictData['api']['productList']['list']
     except:
         pass
@@ -142,8 +134,8 @@ def __get_json_info(site, tt_id):
         else: 
             result['notsend'] = 'yes'
             notsend.append(result)
-    del_bad_symbols(products)
-    del_bad_symbols(notsend)
+    del_bad_symbols(products)#удаление символов, которые
+    del_bad_symbols(notsend)#могут сломать csv таблицы
     return [products, notsend]
 
 def __get_category(categories):
@@ -178,24 +170,23 @@ def __get_product_description(site, tt_name):
         form = driver.find_element_by_xpath('//*[@id="receivedAddress"]')
         form.send_keys(tt_name)
         time.sleep(1)
-        form.send_keys(Keys.ENTER)
-        time.sleep(8)
+        form.send_keys(Keys.ENTER)#на сайте представляются варианты исходя из того
+        time.sleep(8)             # что написано в адрессе, потому жмём enter
         form = driver.find_element_by_name('addressConfirmationForm')
         form.submit()
-        time.sleep(8)
-        try:
+        time.sleep(8)# если ждать слишком мало, то на медленной машине может не успеть прогрузиться
+        try:         #что грозит блокировкой элементов
             form = driver.find_element_by_xpath('/html/body/main/div/div/div[5]/div/div/div[3]/div/div[1]/button[2]')
             driver.execute_script("window.scrollTo(0, {})".format(form.location['y']-90))
             time.sleep(1)
             form.click()
         except Exception as e:
-            print()
-            print('Ошибка:\n', traceback.format_exc())
-            print()
+            log.error('Something didnt work, attach error\n'+traceback.format_exc()+'\n\n')
         site = driver.page_source
         driver.quit()
 
-    except:
+    except Exception as e:
+        log.error('Something didnt work, attach error\n'+traceback.format_exc()+'\n\n')
         driver.quit()
     soup = BeautifulSoup(site, "html.parser")
     page = soup.find('div', class_='product-props__sub-section')
@@ -205,17 +196,20 @@ def __get_product_description(site, tt_name):
         products.append(element.text)
 
     for element in enumerate(products):
+        #Почему-то достаётся 3 поля "Упаковка", "пленка", "Упаковкапленка"
+        #Этот for отсекает третье поле
         if len(products) - element[0] > 2:
             if element[1] == products[element[0]+1] + products[element[0]+2]:
                 del products[element[0]]
     
     for element in enumerate(products):
+        #Массив превращаем в словарь result[res[0]] = res[1], result[res[2]] = res[3]
         if element[0] % 2 == 0:
             result[element[1]] = ''
         else: result[products[element[0]-1]] = element[1]
     return result
 
-def get_api_url(site):
+def get_api_url(site):#не то чтобы это полноценная апишка, но по ней можно доставать картиночки
     soup = BeautifulSoup(site, "html.parser")
     pages = soup.findAll('script', charset="UTF-8")
     for page in pages:

@@ -1,5 +1,5 @@
-import requests
-from requests.adapters import HTTPAdapter, Retry
+import logging
+import traceback
 from bs4 import BeautifulSoup
 import json
 import time
@@ -11,40 +11,38 @@ from selenium.webdriver.common.keys import Keys
 from webdriver_manager.firefox import GeckoDriverManager
 
 config = json.loads(open('config.json', 'r').read())
+logging.basicConfig(filename=config['logs_dir']+"yarche_parser.log", level=logging.INFO)
+log = logging.getLogger("parser")
 
-def get(url):
+def get(site, tt_name):
     rand = random.randrange(1, config['delay_range_s'], 1) if config['delay_range_s'] > 0 else 0
     time.sleep(rand)
     
-    retries = Retry(total=config['max_retries'], backoff_factor=config['backoff_factor'], status_forcelist=[ 500, 502, 503, 504 ])
-    req = requests.Session()
-    req.mount('https://', HTTPAdapter(max_retries=retries))
-    site = req.get(url, headers=json.loads(config['headers'].replace("'",'"')))
-    if site.status_code == 200:
-        return __get_Categories(__get_json(site.text))
-    return site.status_code
-
-def GetSiteWith_tt(site, tt_name):
+    log.info('Start and configure browser')
     opts = FirefoxOptions()
     opts.add_argument("--headless")
     driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=opts)
     driver.set_window_size(1440, 900)
+
     try:
         driver.get(site)
         time.sleep(3)
         butt = driver.find_element_by_xpath('//*[@id="app"]/div/div/div[1]/div/button')
         butt.click()
-        time.sleep(0)
+        time.sleep(2)
         form = driver.find_element_by_xpath('//*[@id="receivedAddress"]')
         form.send_keys(tt_name + Keys.ENTER)
-        time.sleep(0)
+        time.sleep(8)
         form = driver.find_element_by_name('addressConfirmationForm')
         form.submit()
+        time.sleep(8)
         page = driver.page_source
         driver.quit()
+        log.info('Successfully specified delivery address and starting to get categories')
         return __get_Categories(__get_json(page))
 
-    except:
+    except Exception as e:
+        log.error('Something didnt work, attach error\n'+traceback.format_exc()+'\n\n')
         driver.quit()
 
 def __get_Categories(site, parent_url = None, parent_name = ''):
@@ -53,7 +51,7 @@ def __get_Categories(site, parent_url = None, parent_name = ''):
     try:
         dictData = dictData['api']['categoryList']['list']
     except:
-        pass
+        pass #чтобы кучу if'ок не делать решил обернуть в try-except
     for category in dictData:
         result = {}
         result['id'] = category['treeId']
@@ -61,16 +59,18 @@ def __get_Categories(site, parent_url = None, parent_name = ''):
         result['name'] = parent_name + category['name']
         result['url'] = "-".join(['/' + category['code'], str(category['id'])])
         result['parent_url'] = parent_url
-        if len(category['children']) > 0:
+        if len(category['children']) > 0: #если у категории есть подкатегории,
+            # то рекурсивно вызываем функцию и передаём информацию об их отце, чтобы построить дерево
             result['url'] = config['base_url'] + '/category' + result['url']
             CatName = CatName + __get_Categories(json.dumps(category['children']), parent_url=result['url'], parent_name=result['name']+' | ')
         else:
             result['url'] = config['base_url'] + '/catalog' + result['url']
         CatName.append(result)
-    del_bad_symbols(CatName)
+    del_bad_symbols(CatName)#малоли тут тоже могут оказаться символы, которые нужно удалить
+    log.info('Categories retrieved successfully!')
     return CatName
 
-def __get_json(site):
+def __get_json(site):#вытаскиваем всю инфу из статики, приделываем скобочки {} и json готов!
     soup = BeautifulSoup(site, "html.parser")
     pagejson = str(soup.find('script', charset="UTF-8"))
     pagejson = pagejson[pagejson.find('{'):pagejson.rfind('}')+1]

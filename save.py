@@ -5,11 +5,14 @@ from email.mime.application import MIMEApplication
 from email.header import Header
 import smtplib
 import json
+import logging
 from transliterate import translit
 import zipfile
 import os
 
 config = json.loads(open('config.json', 'r').read())
+logging.basicConfig(filename=config['logs_dir']+"yarche_parser.log", level=logging.INFO)
+log = logging.getLogger("parser")
 
 directory = config['output_directory']
 if directory == 'out':
@@ -19,51 +22,60 @@ if len(directory) > 0:
         directory += '/'
 
 def header_categories(category):
-    with open(directory + 'categories' + '.csv', 'a', newline='') as csvfile:
+    filename = directory + 'categories' + '.csv'
+    with open(filename, 'a', newline='') as csvfile:
         fieldnames = list(category.keys())
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                 quoting=csv.QUOTE_ALL)
         writer.writeheader()
+    log.info('Successfully recorded headers in categories in '+filename)
 
 def categories(category):
-    with open(directory + 'categories' + '.csv', 'a', newline='') as csvfile:
+    filename = directory + 'categories' + '.csv'
+    with open(filename, 'a', newline='') as csvfile:
         fieldnames = list(category.keys())
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                 quoting=csv.QUOTE_ALL)
         writer.writerow(category)
+    log.info('Successfully recorded category in '+filename)
 
 def header_products(product, tt_id, time, suspect=False):
-    file_name = '_'.join([translite(config['chain_name']), 'app', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
+    filename = '_'.join([translite(config['chain_name']), 'app', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
     if suspect:
-        file_name = '_'.join([translite(config['chain_name']), 'app', 'suspect', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
-    file_name = directory + file_name
+        filename = '_'.join([translite(config['chain_name']), 'app', 'suspect', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
+    filename = directory + filename
 
-    with open(file_name + '.csv', 'a', newline='') as csvfile:
-        if os.stat(file_name + '.csv').st_size == 0:
+    with open(filename + '.csv', 'a', newline='') as csvfile:
+        if os.stat(filename + '.csv').st_size == 0:
             fieldnames = list(product.keys())
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                     quoting=csv.QUOTE_ALL)
             writer.writeheader()
-    return file_name
+    log.info('Successfully recorded headers in products in '+filename)
+    return filename
 
 def product(product, tt_id, time, file=''):
-    file_name = '_'.join([translite(config['chain_name']), 'app', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
-    file_name = directory + file_name
+    filename = '_'.join([translite(config['chain_name']), 'app', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
+    filename = directory + filename
     if file != '':
-        file_name = file
+        filename = file
 
-    with open(file_name + '.csv', 'a', newline='') as csvfile:
+    with open(filename + '.csv', 'a', newline='') as csvfile:
         fieldnames = list(product.keys())
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                 quoting=csv.QUOTE_ALL)
         writer.writerow(product)
-    return file_name
+    log.info('Successfully recorded product in '+filename)
+    return filename
 
 def archive(file):
     if file != '':
+        log.info('Start archiving')
         jungle_zip = zipfile.ZipFile(file + '.zip', 'w')
         jungle_zip.write(file + '.csv', compress_type=zipfile.ZIP_DEFLATED)
         jungle_zip.close()
+        log.info('Successfully archived {}.zip'.format(file))
+    else: log.error('No file!')
 
 def send_mail(file, tt_name, time, body = 'Выгрузка успешно завершена', recipient='email_recipient'):
     if file != '.zip':

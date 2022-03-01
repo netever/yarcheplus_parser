@@ -1,11 +1,14 @@
 import time
 import json
 from datetime import datetime
+import logging
+import traceback
 import get_categories
 import run
 import save
 
 config = json.loads(open('config.json', 'r').read())
+
 
 def main():
     
@@ -15,48 +18,59 @@ def main():
 
         file = ''
         file2 = ''
-
-        categories = (get_categories.GetSiteWith_tt(config['base_url'] + '/category/', config['tt_id'][tt_id]))
-        if len(categories) > 0:
-            save.header_categories(categories[0])
-            for category in categories:
-                save.categories(category)
         
-        if len(config['categories']) == 0 and len(categories) > 0:
-            for category in categories:
-                products = run.get(category['url'], tt_id)
-                if (len(products[0]) > 0): #https://yarcheplus.ru/catalog/tsvety-455 тут нет товаров
-                    file = save_products(products[0], tt_id, time)
-                    file2 = save_products(products[1], tt_id, time)
-            save.archive(file)
-            save.archive(file2)
+        logging.basicConfig(filename=config['logs_dir']+"yarche_parser.log", level=logging.INFO)
+        log = logging.getLogger("parser")
+
+        log.info('Starting download categories for a {}\n'.format(config['tt_id'][tt_id]))
+        categories = (get_categories.get(config['base_url'] + '/category/', config['tt_id'][tt_id]))
+        try:
+            if len(categories) > 0:
+                save.header_categories(categories[0])
+                for category in categories:
+                    save.categories(category)
+        except Exception as e:
+            log.error('Something didnt work in save categories, attach error\n'+traceback.format_exc()+'\n\n')
+        
+        try:
+            if len(config['categories']) == 0 and len(categories) > 0:#если в конфиге пусто, то парсим всё что есть
+                for category in categories:
+                    products = run.get(category['url'], tt_id)
+                    file = save_products(products[0], tt_id, time) if (len(products[0]) > 0) else '' #https://yarcheplus.ru/catalog/tsvety-455 тут нет товаров
+                    file2 = save_products(products[1], tt_id, time) if (len(products[1]) > 0) else ''
+                save.archive(file)
+                save.archive(file2)
+        except Exception as e:
+            log.error('Something didnt work in save products, attach error\n'+traceback.format_exc()+'\n\n')
 
         file = ''
         file2 = ''
 
-        if len(config['categories']) > 0:
-            for category in config['categories']:
-                
-                if category in get_keys(categories, 'url'):
-                    products = run.get(category, tt_id)
-                    if (len(products[0]) > 0):
-                        file = save_products(products[0], tt_id, time)
-                    if (len(products[1]) > 0):
-                        file2 = save_products(products[1], tt_id, time)
+        try:
+            if len(config['categories']) > 0:#если в конфиге не пусто, то бежим по категориям
+                for category in config['categories']:
+                    
+                    if category in get_keys(categories, 'url'):
+                        products = run.get(category, tt_id)
+                        file = save_products(products[0], tt_id, time) if (len(products[0]) > 0) else ''
+                        file2 = save_products(products[1], tt_id, time) if (len(products[1]) > 0) else ''
 
-                    if len(check_subcategory(category, categories)) > 0:
-                        for subcategory in check_subcategory(category, categories):
-                            products = run.get(subcategory, tt_id)
-                            if (len(products[0]) > 0):
-                                file = save_products(products[0], tt_id, time)
-                            if (len(products[1]) > 0):
-                                file2 = save_products(products[1], tt_id, time)
-                else: print('Ошибка!')
-            save.archive(file)
-            save.archive(file2)
-    
-        save.send_mail(file + '.zip', config['tt_id'][tt_id], time.strftime("%Y-%m-%d %H:%M:%S"))
-        save.send_mail(file2 + '.zip', config['tt_id'][tt_id], time.strftime("%Y-%m-%d %H:%M:%S"), recipient='work_email_recipient')
+                        if len(check_subcategory(category, categories)) > 0:#проверяем наличие подкатегорий
+                            for subcategory in check_subcategory(category, categories):
+                                products = run.get(subcategory, tt_id)
+                                file = save_products(products[0], tt_id, time) if (len(products[0]) > 0) else ''
+                                file2 = save_products(products[1], tt_id, time) if (len(products[1]) > 0) else ''
+                    else: log.error('No urls in categories!\n')
+                save.archive(file)
+                save.archive(file2)
+        except Exception as e:
+            log.error('Something didnt work in save products, attach error\n'+traceback.format_exc()+'\n\n')
+        
+        try:
+            save.send_mail(file + '.zip', config['tt_id'][tt_id], time.strftime("%Y-%m-%d %H:%M:%S"))
+            save.send_mail(file2 + '.zip', config['tt_id'][tt_id], time.strftime("%Y-%m-%d %H:%M:%S"), recipient='work_email_recipient')
+        except Exception as e:
+            log.error('Something didnt work in send email, attach error\n'+traceback.format_exc()+'\n\n')
 
 
 def save_products(products, tt_id, time):
@@ -76,7 +90,7 @@ def get_keys(list, par):
         result.append(dict[par])
     return result
 
-def check_subcategory(category, categories):
+def check_subcategory(category, categories): #Проверяем наличие подкатегорий, если есть, то извлекаем
     cat_id = -1
     subcategories = []
     for cat in categories:
