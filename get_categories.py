@@ -9,41 +9,27 @@ from selenium.webdriver import FirefoxOptions
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.common.keys import Keys
 from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions
 
 config = json.loads(open('config.json', 'r').read())
 logging.basicConfig(filename=config['logs_dir']+"yarche_parser.log", level=logging.INFO)
 log = logging.getLogger("parser")
 
-def get(site, tt_name):
+def get(driver, site, tt_name):
     rand = random.randrange(1, config['delay_range_s'], 1) if config['delay_range_s'] > 0 else 0
     time.sleep(rand)
-    
-    log.info('Start and configure browser')
-    opts = FirefoxOptions()
-    opts.add_argument("--headless")
-    driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=opts)
-    driver.set_window_size(1440, 900)
 
     try:
         driver.get(site)
-        time.sleep(3)
-        butt = driver.find_element_by_xpath('//*[@id="app"]/div/div/div[1]/div/button')
-        butt.click()
-        time.sleep(2)
-        form = driver.find_element_by_xpath('//*[@id="receivedAddress"]')
-        form.send_keys(tt_name + Keys.ENTER)
-        time.sleep(8)
-        form = driver.find_element_by_name('addressConfirmationForm')
-        form.submit()
-        time.sleep(8)
+        WebDriverWait(driver, 10).until(expected_conditions.visibility_of_element_located((By.XPATH, '/html/body/main/div/div/div[2]/div/div[1]/div[1]/a'))) #ждём когда появится элемент
         page = driver.page_source
-        driver.quit()
         log.info('Successfully specified delivery address and starting to get categories')
         return __get_Categories(__get_json(page))
 
     except Exception as e:
         log.error('Something didnt work, attach error\n'+traceback.format_exc()+'\n\n')
-        driver.quit()
 
 def __get_Categories(site, parent_url = None, parent_name = ''):
     dictData = json.loads(site)

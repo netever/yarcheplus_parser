@@ -78,6 +78,7 @@ def archive(file):
     else: log.error('No file!')
 
 def send_mail(file, tt_name, time, body = 'Выгрузка успешно завершена', recipient='email_recipient'):
+    log.info('In method ' + file)
     if file != '.zip':
         address = tt_name
         if get_city(config['tt_region']) in address:

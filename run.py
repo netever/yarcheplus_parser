@@ -1,8 +1,11 @@
 from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions
 from selenium.webdriver import FirefoxOptions
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.common.keys import Keys
 from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.common.by import By
 import logging
 from bs4 import BeautifulSoup
 import json
@@ -10,6 +13,7 @@ from datetime import datetime
 import time
 import random
 import traceback
+import http.client
 
 
 
@@ -17,42 +21,31 @@ config = json.loads(open('config.json', 'r').read())
 logging.basicConfig(filename=config['logs_dir']+"yarche_parser.log", level=logging.INFO)
 log = logging.getLogger("parser")
 
+conn = http.client.HTTPConnection("ifconfig.me")
+conn.request("GET", "/ip")
+ip = conn.getresponse().read()
+ip = str(ip)[1:] if str(ip)[0] == 'b' else str(ip)
 
-def get(site, tt_id):
+def get(driver, site, tt_id):
     rand = random.randrange(1, config['delay_range_s'], 1) if config['delay_range_s'] > 0 else 0
     time.sleep(rand)
 
-    log.info('Start and configure browser')
-    opts = FirefoxOptions()
-    opts.add_argument("--headless")
-    driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=opts)
-    driver.set_window_size(1440, 900)
     try:
         driver.get(site)
-        time.sleep(3)
-        butt = driver.find_element_by_xpath('//*[@id="app"]/div/div/div[1]/div/button')
-        butt.click()
-        time.sleep(1)
-        form = driver.find_element_by_xpath('//*[@id="receivedAddress"]')
-        form.send_keys(config['tt_id'][tt_id] + Keys.ENTER)
-        time.sleep(8)
-        form = driver.find_element_by_name('addressConfirmationForm')
-        form.submit()
-        time.sleep(8)
+        WebDriverWait(driver, 10).until(expected_conditions.visibility_of_element_located((By.XPATH, '/html/body/main/div/div/div[2]/div/div[1]/div[1]/a'))) #ждём когда появится элемент
         page = driver.page_source
-        driver.quit()
-        log.info('Successfully specified delivery address and starting to get products')
-        return __get_json_info(page, tt_id)
-
+        
+        log.info('Successfully to get site products')
+        result = __get_json_info(driver, page, tt_id)
+        return result
     except Exception as e:
         log.error('Something didnt work, attach error\n'+traceback.format_exc()+'\n\n')
-        driver.quit()
         return None
 
 
 
 
-def __get_json_info(site, tt_id):
+def __get_json_info(driver, site, tt_id):
     dictData = json.loads(__get_json(site))
     try: #чтобы кучу if'ок не делать решил обернуть в try-except
         dictData = dictData['api']['productList']['list']
@@ -99,10 +92,10 @@ def __get_json_info(site, tt_id):
         result['sku_alcohol_min'] = ""
         result['sku_link'] = config['base_url'] + "/product/" + product['code'] + '-' + str(product['id'])
         result['api_link'] = "" + get_api_url(site)
-        sku_parameters = __get_product_description(result['sku_link'], config['tt_id'][tt_id])
+        sku_parameters = __get_product_description(driver, result['sku_link'], config['tt_id'][tt_id])
         result['sku_parameters_json'] = json.dumps(sku_parameters)
         result['sku_images'] = ""
-        result['server_ip'] = '127.0.0.1'
+        result['server_ip'] = ip
         result['dev_info'] = ''
         result['promodata'] = 'promodata'
 
@@ -136,6 +129,7 @@ def __get_json_info(site, tt_id):
             notsend.append(result)
     del_bad_symbols(products)#удаление символов, которые
     del_bad_symbols(notsend)#могут сломать csv таблицы
+    log.info('Product retrieved successfully!')
     return [products, notsend]
 
 def __get_category(categories):
@@ -153,41 +147,28 @@ def __get_json(site):
     pagejson = pagejson[pagejson.find('{'):pagejson.rfind('}')+1]
     return pagejson
 
-def __get_product_description(site, tt_name):
+def __get_product_description(driver, site, tt_name):
     rand = random.randrange(1, config['delay_range_s'], 1) if config['delay_range_s'] > 0 else 0
     time.sleep(rand)
     
-    opts = FirefoxOptions()
-    opts.add_argument("--headless")
-    driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=opts)
-    driver.set_window_size(1440, 900)
     try:
         driver.get(site)
-        time.sleep(3)
-        butt = driver.find_element_by_xpath('//*[@id="app"]/div/div/div[1]/div/button')
-        butt.click()
-        time.sleep(0)
-        form = driver.find_element_by_xpath('//*[@id="receivedAddress"]')
-        form.send_keys(tt_name)
-        time.sleep(1)
-        form.send_keys(Keys.ENTER)#на сайте представляются варианты исходя из того
-        time.sleep(8)             # что написано в адрессе, потому жмём enter
-        form = driver.find_element_by_name('addressConfirmationForm')
-        form.submit()
-        time.sleep(8)# если ждать слишком мало, то на медленной машине может не успеть прогрузиться
-        try:         #что грозит блокировкой элементов
+        WebDriverWait(driver, 10).until(expected_conditions.visibility_of_element_located((By.XPATH, '/html/body/main/div/div/div[2]/div/div[1]/div[1]/a'))) #ждём когда появится элемент
+        try:
+            log.info('Start trying to get description')
             form = driver.find_element_by_xpath('/html/body/main/div/div/div[5]/div/div/div[3]/div/div[1]/button[2]')
             driver.execute_script("window.scrollTo(0, {})".format(form.location['y']-90))
             time.sleep(1)
             form.click()
+            log.info('Successful!')
         except Exception as e:
-            log.error('Something didnt work, attach error\n'+traceback.format_exc()+'\n\n')
+            log.warning('Something didnt work, attach error\n'+traceback.format_exc()+'\n\n')
+            log.warning('But maybe this is not problem')
         site = driver.page_source
-        driver.quit()
 
     except Exception as e:
         log.error('Something didnt work, attach error\n'+traceback.format_exc()+'\n\n')
-        driver.quit()
+        #driver.quit()
     soup = BeautifulSoup(site, "html.parser")
     page = soup.find('div', class_='product-props__sub-section')
     products = []
@@ -210,13 +191,16 @@ def __get_product_description(site, tt_name):
     return result
 
 def get_api_url(site):#не то чтобы это полноценная апишка, но по ней можно доставать картиночки
-    soup = BeautifulSoup(site, "html.parser")
-    pages = soup.findAll('script', charset="UTF-8")
-    for page in pages:
-        if 'window.API_URL' in str(page):
-            page = str(page)
-            return page[page.find("'")+1:page.find("'", page.find("'")+1)]
-    return None
+    try:
+        soup = BeautifulSoup(site, "html.parser")
+        pages = soup.findAll('script', charset="UTF-8")
+        for page in pages:
+            if 'window.API_URL' in str(page):
+                page = str(page)
+                return page[page.find("'")+1:page.find("'", page.find("'")+1)]
+    except:
+        log.error('Failed to get api')
+        return None
 
 def get_city(abbr):
     citys = {
