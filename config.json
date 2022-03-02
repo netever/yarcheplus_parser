@@ -7,8 +7,7 @@
     "tt_region": "msk",
     "part_number": "p1",
     "tt_id": {"1": "Москва, Вересаева 10"},
-    "tt_name": ["Москва, Вересаева 10"],
-    "categories": ["https://yarcheplus.ru/catalog/maslenitsa-680"],
+    "categories": ["https://yarcheplus.ru/catalog/ikra-101"],
     "sku_images_enable": false,
     "sku_parameters_enable": false,
     "promo_only": false,
@@ -16,12 +15,13 @@
     "max_retries": 5,
     "backoff_factor": 1,
     "headers": "{'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36 OPR/83.0.4254.27'}",
-    "logs_dir": "out",
+    "logs_dir": "",
     "email_sender": {
-        "login": "email",
-        "password": "password",
+        "login": "kgunovosti@gmail.com",
+        "password": "ss145632",
         "smtp": "smtp.gmail.com",
         "smtp_port": "465"
     },
-    "email_recipient": ["email", "email"]
+    "email_recipient": ["netever44@gmail.com"],
+    "work_email_recipient": ["geoiyami@gmail.com"]
 }
