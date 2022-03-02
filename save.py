@@ -21,18 +21,22 @@ if len(directory) > 0:
     if directory[-1] != '/':
         directory += '/'
 
-def header_categories(category):
-    filename = directory + 'categories' + '.csv'
-    with open(filename, 'a', newline='') as csvfile:
+def header_categories(category, tt_id, time):
+    filename = '_'.join(['categories', translite(config['chain_name']), 'app', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
+    #filename = directory + 'categories' + '.csv'
+    filename = directory + filename
+    with open(filename + '.csv', 'a', newline='') as csvfile:
         fieldnames = list(category.keys())
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                 quoting=csv.QUOTE_ALL)
         writer.writeheader()
     log.info('Successfully recorded headers in categories in '+filename)
 
-def categories(category):
-    filename = directory + 'categories' + '.csv'
-    with open(filename, 'a', newline='') as csvfile:
+def categories(category, tt_id, time):
+    filename = '_'.join(['categories', translite(config['chain_name']), 'app', config['tt_region'], tt_id, config['part_number'], 'pd_all', time])
+    #filename = directory + 'categories' + '.csv'
+    filename = directory + filename
+    with open(filename + '.csv', 'a', newline='') as csvfile:
         fieldnames = list(category.keys())
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                 quoting=csv.QUOTE_ALL)

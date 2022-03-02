@@ -36,7 +36,6 @@ def main():
         log.info('Website successfully received')
     except Exception as e:
         log.error('Something didnt work, attach error\n'+traceback.format_exc()+'\n\n')
-        #driver.quit()
 
     for tt_id in list(config['tt_id'].keys()):
 
@@ -64,14 +63,14 @@ def main():
         categories = (get_categories.get(driver, config['base_url'] + '/category/', config['tt_id'][tt_id]))
         try:
             if len(categories) > 0:
-                save.header_categories(categories[0])
+                save.header_categories(categories[0], tt_id, timenow.strftime("%Y-%m-%d_%H-%M-%S"))
                 for category in categories:
-                    save.categories(category)
+                    save.categories(category, tt_id, timenow.strftime("%Y-%m-%d_%H-%M-%S"))
         except Exception as e:
             log.error('Something didnt work in save categories, attach error\n'+traceback.format_exc()+'\n\n')
         
         try:
-            if len(config['categories']) == 0 and len(categories) > 0:#если в конфиге пусто, то парсим всё что есть
+            if len(config['categories'][tt_id]) == 0 and len(categories) > 0:#если в конфиге пусто, то парсим всё что есть
                 for category in categories:
                     products = run.get(driver, category['url'], tt_id)
                     file = save_products(products[0], tt_id, timenow) if (len(products[0]) > 0) else '' #https://yarcheplus.ru/catalog/tsvety-455 тут нет товаров
@@ -86,8 +85,8 @@ def main():
         file2 = ''
 
         try:
-            if len(config['categories']) > 0:#если в конфиге не пусто, то бежим по категориям
-                for category in config['categories']:
+            if len(config['categories'][tt_id]) > 0:#если в конфиге не пусто, то бежим по категориям
+                for category in config['categories'][tt_id]:
                     
                     if category in get_keys(categories, 'url'):
                         products = run.get(driver, category, tt_id)
