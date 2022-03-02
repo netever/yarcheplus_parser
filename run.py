@@ -92,8 +92,15 @@ def __get_json_info(driver, site, tt_id):
         result['sku_alcohol_min'] = ""
         result['sku_link'] = config['base_url'] + "/product/" + product['code'] + '-' + str(product['id'])
         result['api_link'] = "" + get_api_url(site)
-        sku_parameters = __get_product_description(driver, result['sku_link'], config['tt_id'][tt_id])
-        result['sku_parameters_json'] = json.dumps(sku_parameters)
+        sku_parameters = {}
+        sku_parameters_json = ''
+        try:
+            sku_parameters = __get_product_description(driver, result['sku_link'], config['tt_id'][tt_id])
+            sku_parameters_json = json.dumps(sku_parameters, ensure_ascii=False)
+        except:
+            log.info('Failed to get description')
+        log.info(sku_parameters_json)
+        result['sku_parameters_json'] = sku_parameters_json
         result['sku_images'] = ""
         result['server_ip'] = ip
         result['dev_info'] = ''
@@ -184,7 +191,7 @@ def __get_product_description(driver, site, tt_name):
                 del products[element[0]]
     
     for element in enumerate(products):
-        #Массив превращаем в словарь result[res[0]] = res[1], result[res[2]] = res[3]
+        #Массив превращаем в словарь result[res[0]] = res[1], result[res[2]] = res[3]...
         if element[0] % 2 == 0:
             result[element[1]] = ''
         else: result[products[element[0]-1]] = element[1]
