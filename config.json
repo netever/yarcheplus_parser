@@ -22,6 +22,6 @@
         "smtp": "smtp.gmail.com",
         "smtp_port": "465"
     },
-    "email_recipient": ["email_recipient@gmail.com"],
-    "work_email_recipient": ["work_email_recipient@gmail.com"]
+    "email_recipient": ["recipient@gmail.com"],
+    "work_email_recipient": ["recipient_work@gmail.com"]
 }
