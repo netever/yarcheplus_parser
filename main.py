@@ -51,7 +51,6 @@ def main():
             form.submit()
             WebDriverWait(driver, 10).until(expected_conditions.invisibility_of_element((By.XPATH, '/html/body/div[2]/div/div/div[1]/form/button'))) #ждём когда появится элемент
             log.info('Successfully specified delivery address')
-            driver.save_screenshot('screen.png')
         except Exception as e:
             log.error('Something didnt work, attach error\n'+traceback.format_exc()+'\n\n')
 
